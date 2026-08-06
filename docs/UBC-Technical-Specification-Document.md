@@ -6284,7 +6284,7 @@ The BPP sends this after the charging session completes with actual consumption 
 | `beckn:orderValue.value` | `90.00` | Reflects actual consumption, not pre-authorized amount |
 | `beckn:payment.beckn:amount.value` | `143.95` | Original pre-authorized payment (unchanged) |
 | `beckn:payment.beckn:paymentStatus` | `COMPLETED` | Payment was collected — refund hasn't happened yet |
-| `beckn:invoice.beckn:totals.value` | `90.00` | Invoice matches actual order value |
+| `beckn:orderAttributes.totals.value` | `90.00` | Invoice matches actual order value |
 | `sessionStatus` | `COMPLETED` | Charging session completed |
 
 > **Important:** The `DISCOUNT` component with value −53.95 is the signal to the BAP that a refund is due. The BAP SHOULD compare `beckn:payment.beckn:amount` (₹143.95 paid) against `beckn:orderValue.value` (₹90.00 actual) to determine the refund amount. The `description` field on the `DISCOUNT` component explicitly states the refund calculation.
@@ -6385,16 +6385,15 @@ The BPP sends this after the charging session completes with actual consumption 
           "sessionStatus": "COMPLETED"
         }
       },
-      "beckn:invoice": {
-        "@context": "https://raw.githubusercontent.com/beckn/protocol-specifications-v2/refs/heads/core-v2.0.0-rc/schema/core/v2/context.jsonld",
-        "@type": "beckn:Invoice",
-        "beckn:id": "invoice-ev-charging-001",
-        "beckn:totals": {
+      "beckn:orderAttributes": {
+        "@context": "https://raw.githubusercontent.com/bhim/ubc-tsd/main/beckn-schemas/UBCExtensions/v1/context.jsonld",
+        "@type": "UBCInvoice",
+        "invoiceId": "invoice-ev-charging-001",
+        "totals": {
           "currency": "INR",
           "value": 90.0
         },
-        "beckn:invoiceAttributes": {
-          "@context": "https://raw.githubusercontent.com/bhim/ubc-tsd/main/beckn-schemas/UBCExtensions/v1/context.jsonld",
+        "invoiceAttributes": {
           "@type": "UBCInvoiceAttributes",
           "invoiceUrl": "https://example-bpp.com/charging/session/order-ev-charging-001/fee"
         }
@@ -6581,7 +6580,7 @@ The BPP sends this after the charging session completes with actual consumption 
 | `beckn:orderValue.value` | `287.90` | Full actual consumption value |
 | `beckn:payment.beckn:amount.value` | `143.95` | Original pre-authorized payment (only this much was collected) |
 | `beckn:payment.beckn:paymentStatus` | `COMPLETED` | Original payment was collected successfully |
-| `beckn:invoice.beckn:totals.value` | `287.90` | Invoice reflects full actual consumption |
+| `beckn:orderAttributes.totals.value` | `287.90` | Invoice reflects full actual consumption |
 | `sessionStatus` | `COMPLETED` | Charging session completed |
 
 > **Warning:** The missing payment amount of ₹143.95 represents money the BPP is owed but could not collect because it exceeds the pre-authorized payment. This amount is implicitly recorded against `user-123` on the BPP side and will surface in their next charging session's `on_select` quote.
@@ -6694,16 +6693,15 @@ The BPP sends this after the charging session completes with actual consumption 
           "sessionStatus": "COMPLETED"
         }
       },
-      "beckn:invoice": {
-        "@context": "https://raw.githubusercontent.com/beckn/protocol-specifications-v2/refs/heads/core-v2.0.0-rc/schema/core/v2/context.jsonld",
-        "@type": "beckn:Invoice",
-        "beckn:id": "invoice-ev-charging-001",
-        "beckn:totals": {
+      "beckn:orderAttributes": {
+        "@context": "https://raw.githubusercontent.com/bhim/ubc-tsd/main/beckn-schemas/UBCExtensions/v1/context.jsonld",
+        "@type": "UBCInvoice",
+        "invoiceId": "invoice-ev-charging-001",
+        "totals": {
           "currency": "INR",
           "value": 287.90
         },
-        "beckn:invoiceAttributes": {
-          "@context": "https://raw.githubusercontent.com/bhim/ubc-tsd/main/beckn-schemas/UBCExtensions/v1/context.jsonld",
+        "invoiceAttributes": {
           "@type": "UBCInvoiceAttributes",
           "invoiceUrl": "https://example-bpp.com/charging/session/order-ev-charging-001/fee"
         }
