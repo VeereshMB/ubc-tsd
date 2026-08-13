@@ -2579,12 +2579,12 @@ The PaymentSettlement schema extends the Payment object with an array of settlem
                 {
                   "name": "POWER",
                   "value": 18.4,
-                  "unitCode": "KWH"
+                  "unitCode": "KW"
                 },
                 {
                   "name": "ENERGY",
                   "value": 10.2,
-                  "unitCode": "KW"
+                  "unitCode": "KWH"
                 },
                 {
                   "name": "VOLTAGE",
@@ -2609,12 +2609,12 @@ The PaymentSettlement schema extends the Payment object with an array of settlem
                 {
                   "name": "POWER",
                   "value": 17.1,
-                  "unitCode": "KWH"
+                  "unitCode": "KW"
                 },
                 {
                   "name": "ENERGY",
                   "value": 11.1,
-                  "unitCode": "KW"
+                  "unitCode": "KWH"
                 },
                 {
                   "name": "VOLTAGE",
@@ -5025,12 +5025,12 @@ Satisfied, Aisha resumes her trip with time to spare.
                 {
                   "name": "POWER",
                   "value": 18.4,
-                  "unitCode": "KWH"
+                  "unitCode": "KW"
                 },
                 {
                   "name": "ENERGY",
                   "value": 10.2,
-                  "unitCode": "KW"
+                  "unitCode": "KWH"
                 },
                 {
                   "name": "VOLTAGE",
@@ -5055,12 +5055,12 @@ Satisfied, Aisha resumes her trip with time to spare.
                 {
                   "name": "POWER",
                   "value": 17.1,
-                  "unitCode": "KWH"
+                  "unitCode": "KW"
                 },
                 {
                   "name": "ENERGY",
                   "value": 11.1,
-                  "unitCode": "KW"
+                  "unitCode": "KWH"
                 },
                 {
                   "name": "VOLTAGE",
