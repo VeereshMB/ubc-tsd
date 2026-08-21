@@ -214,6 +214,12 @@ paths:
       description: |
         Callback endpoint that sends updated order details in response to an update request.
         This is sent asynchronously by BPP to BAP receiver after processing the update request.
+        
+        For invoice flows, the BPP sends two on_update callbacks per transaction_id:
+        1. Immediate (t=0): invoiceStatus=PENDING, no invoiceUrl
+        2. Deferred (t=+1-8 min): invoiceStatus=AVAILABLE, with invoiceUrl
+        
+        BAPs MUST accept multiple on_update per transaction_id, deduplicating by message_id.
       operationId: onUpdate
       requestBody:
         required: true
@@ -226,8 +232,44 @@ paths:
                 summary: On update response while charging
                 externalValue: ../tmp/v2/10_on_update/time-based-ev-charging-slot-on-update.json
               completeCharging:
-                summary: On update response after charging ends
+                summary: On update response after charging ends (invoice PENDING)
                 externalValue: ../tmp/v2/14_on_update/time-based-ev-charging-slot-on-update.json
+              invoiceReady:
+                summary: Deferred invoice-ready on_update (invoice AVAILABLE)
+                description: >
+                  Unsolicited on_update push sent when the CPO has generated
+                  the invoice document. Same transaction_id, new message_id.
+                value:
+                  context:
+                    version: '2.0.0'
+                    action: on_update
+                    domain: beckn.one:deg:ev-charging
+                    bap_id: example-bap.com
+                    bap_uri: https://example-bap.com/pilot/bap/energy/v2
+                    transaction_id: 2b4d69aa-22e4-4c78-9f56-5a7b9e2b2002
+                    message_id: c7a1d2e3-4f56-7890-abcd-ef0123456789
+                    timestamp: '2025-01-27T11:52:00Z'
+                    ttl: PT30S
+                    bpp_id: example-bpp.com
+                    bpp_uri: https://example-bpp.com/pilot/bpp/energy/v2
+                  message:
+                    order:
+                      '@context': https://raw.githubusercontent.com/beckn/protocol-specifications-v2/refs/heads/core-v2.0.0-rc/schema/core/v2/context.jsonld
+                      '@type': beckn:Order
+                      beckn:id: order-ev-charging-001
+                      beckn:orderStatus: COMPLETED
+                      beckn:orderAttributes:
+                        '@context': https://raw.githubusercontent.com/bhim/ubc-tsd/main/beckn-schemas/UBCExtensions/v1/context.jsonld
+                        '@type': UBCInvoice
+                        invoiceId: invoice-ev-charging-001
+                        invoiceStatus: AVAILABLE
+                        totals:
+                          currency: INR
+                          value: 143.95
+                        invoiceAttributes:
+                          '@type': UBCInvoiceAttributes
+                          invoiceUrl: https://example-bpp.com/charging/session/order-ev-charging-001/fee
+                  error: {}
       responses:
         '200':
           description: ACK - Callback received
@@ -1138,6 +1180,39 @@ components:
               format: date-time
         "beckn:orderAttributes":
           type: object
+          properties:
+            '@context':
+              type: string
+              description: JSON-LD context URL
+            '@type':
+              type: string
+              description: JSON-LD type
+              example: UBCInvoice
+            invoiceId:
+              type: string
+              description: Stable invoice identifier
+            invoiceStatus:
+              type: string
+              description: 'Invoice lifecycle status: PENDING (being generated), AVAILABLE (ready with URL)'
+              enum:
+                - PENDING
+                - AVAILABLE
+            totals:
+              type: object
+              properties:
+                currency:
+                  type: string
+                value:
+                  type: number
+            invoiceAttributes:
+              type: object
+              description: Present only when invoiceStatus is AVAILABLE
+              properties:
+                '@type':
+                  type: string
+                invoiceUrl:
+                  type: string
+                  format: uri
         quote:
           type: object
           properties:

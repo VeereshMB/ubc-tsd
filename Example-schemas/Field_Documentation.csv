@@ -243,4 +243,9 @@ beckn:orderAttributes.preferences,Preferences,Object,No,User charging preference
 beckn:orderAttributes.preferences.startTime,Preferred Start Time,DateTime,No,Preferred session start,2026-01-04T08:00:00+05:30,"select, on_select",ISO 8601 format
 beckn:orderAttributes.preferences.endTime,Preferred End Time,DateTime,No,Preferred session end,2026-01-04T10:00:00+05:30,"select, on_select",ISO 8601 format
 beckn:orderAttributes.buyerFinderFee,Buyer Finder Fee,Object,No,BAP commission,{currency: INR value: 2.5},"select, on_select",Fee for BAP services
+beckn:orderAttributes.invoiceId,Invoice ID,String,Yes,Stable invoice identifier,invoice-ev-charging-001,"on_update",UBC invoice object
+beckn:orderAttributes.invoiceStatus,Invoice Status,Enum,Yes,"Lifecycle status: PENDING, AVAILABLE",PENDING,"on_update",Two-phase invoice flow
+beckn:orderAttributes.totals,Totals,Object,No,Invoice total amount,{currency: INR value: 143.95},"on_update",Invoice total
+beckn:orderAttributes.invoiceAttributes,Invoice Attributes,Object,No,Present when invoiceStatus=AVAILABLE,{@type: UBCInvoiceAttributes invoiceUrl: ...},"on_update",Only in AVAILABLE phase
+beckn:orderAttributes.invoiceAttributes.invoiceUrl,Invoice URL,URI,No,URL to digital invoice,https://example-bpp.com/invoice.pdf,"on_update",Only when AVAILABLE
 

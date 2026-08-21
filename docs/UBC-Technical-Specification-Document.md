@@ -2638,11 +2638,18 @@ The PaymentSettlement schema extends the Payment object with an array of settlem
 ```
 </details>
 
-**11.1.2.13. async action: on_update (stop-charging)**
+**11.1.2.13. async action: on_update (stop-charging) — two-phase invoice**
 * **Method:** POST
-* **Use Case:** For the paid amount the session stops (or notifies the EV user to unplug). He receives a digital invoice and session summary in-app. If anything went wrong (e.g., session interrupted, SOC reaches 100%, etc.), the app reconciles to bill only for energy delivered and issues any adjustment or refund automatically.
+* **Use Case:** For the paid amount the session stops (or notifies the EV user to unplug). He receives a payment summary immediately and a digital invoice later. If anything went wrong (e.g., session interrupted, SOC reaches 100%, etc.), the app reconciles to bill only for energy delivered and issues any adjustment or refund automatically.
+
+> **Two-phase invoice flow:** Invoice generation takes some minutes per CPO. The BPP sends two `on_update` callbacks for the same `transaction_id`:
+> 1. **Immediate on_update (t=0):** Carries the finalized CDR + payment summary with `invoiceStatus: PENDING` and no `invoiceUrl`. The BAP can show the payment summary to the user immediately.
+> 2. **Deferred invoice-ready on_update :** An unsolicited push carrying `invoiceStatus: AVAILABLE` with the `invoiceUrl` pointing to the generated invoice document. The BAP updates the UI to show the invoice link.
+>
+> BAPs MUST accept multiple `on_update` callbacks per `transaction_id`, deduplicating by `message_id`. The BAP SHOULD NOT regress `invoiceStatus` from `AVAILABLE` back to `PENDING`.
+
 <details>
-<summary><a href="../Example-schemas/14_02_on_update/ev-charging-completed-on_update.json">Example json :rocket:</a></summary>
+<summary><a href="../Example-schemas/14_02_on_update/ev-charging-completed-on_update.json">Step 1 — Immediate on_update (PENDING) :rocket:</a></summary>
 
 ```json
 {
@@ -2761,6 +2768,45 @@ The PaymentSettlement schema extends the Payment object with an array of settlem
     }
   },
   "error": {}
+}
+```
+</details>
+
+<details>
+<summary><a href="../Example-schemas/14_03_on_update/ev-charging-invoice-ready-on_update.json">Step 2 — Deferred invoice-ready on_update (AVAILABLE) :rocket:</a></summary>
+
+```json
+{
+  "context": {
+    "version": "2.0.0",
+    "action": "on_update",
+    "domain": "beckn.one:deg:ev-charging",
+    "transaction_id": "2b4d69aa-22e4-4c78-9f56-5a7b9e2b2002",
+    "message_id": "c7a1d2e3-4b5a-4896-9c1d-8e2f3a4b5c6d",
+    "timestamp": "2025-01-27T11:52:00Z",
+    "ttl": "PT30S",
+    "bap_id": "example-bap.com",
+    "bap_uri": "https://example-bap.com/pilot/bap/energy/v2",
+    "bpp_id": "example-bpp.com",
+    "bpp_uri": "https://example-bpp.com/pilot/bpp/energy/v2"
+  },
+  "message": {
+    "order": {
+      "@context": "https://raw.githubusercontent.com/beckn/protocol-specifications-v2/refs/heads/core-v2.0.0-rc/schema/core/v2/context.jsonld",
+      "@type": "beckn:Order",
+      "beckn:id": "order-ev-charging-001",
+      "beckn:orderAttributes": {
+        "@context": "https://raw.githubusercontent.com/bhim/ubc-tsd/main/beckn-schemas/UBCExtensions/v1/context.jsonld",
+        "@type": "UBCInvoice",
+        "invoiceId": "invoice-ev-charging-001",
+        "invoiceStatus": "AVAILABLE",
+        "invoiceAttributes": {
+          "@type": "UBCInvoiceAttributes",
+          "invoiceUrl": "https://example-bpp.com/charging/session/order-ev-charging-001/fee"
+        }
+      }
+    }
+  }
 }
 ```
 </details>
@@ -5084,11 +5130,14 @@ Satisfied, Aisha resumes her trip with time to spare.
 ```
 </details>
 
-**11.2.2.15. async action: on_update (stop-charging)**
+**11.2.2.15. async action: on_update (stop-charging) — two-phase invoice**
 * **Method:** POST
-* **Use Case:** The session terminates. Aisha receives the digital invoice and updated wallet balance.
+* **Use Case:** The session terminates. Aisha receives the payment summary immediately and the digital invoice later.
+
+> **Two-phase invoice flow:** Same as §11.1.2.13 — the BPP sends two `on_update` callbacks for the same `transaction_id`: an immediate one with `invoiceStatus: PENDING` (no URL), and a deferred unsolicited push with `invoiceStatus: AVAILABLE` (with URL).
+
 <details>
-<summary><a href="../Example-schemas/14_02_on_update/ev-charging-completed-on_update.json">Example json :rocket:</a></summary>
+<summary><a href="../Example-schemas/14_02_on_update/ev-charging-completed-on_update.json">Step 1 — Immediate on_update (PENDING) :rocket:</a></summary>
 
 ```json
 {
@@ -5209,6 +5258,13 @@ Satisfied, Aisha resumes her trip with time to spare.
   "error": {}
 }
 ```
+</details>
+
+<details>
+<summary><a href="../Example-schemas/14_03_on_update/ev-charging-invoice-ready-on_update.json">Step 2 — Deferred invoice-ready on_update (AVAILABLE) :rocket:</a></summary>
+
+> See the full invoice-ready payload in the [completed scenario §11.1.2.13 Step 2](#111213-async-action-on_update-stop-charging--two-phase-invoice). The payload structure is identical; only the `message_id` and `timestamp` differ.
+
 </details>
 
 **11.2.2.16. action: rating**
@@ -6002,7 +6058,7 @@ Operational anomalies or technical faults at the charging station may occasional
 
 ### 12.3 User-Initiated Session Termination:
 
-During an active charging session, the user may elect to voluntarily terminate the service prior to the completion of the charge or the scheduled time. To facilitate this request, the application (BAP) triggers an `update` API call. Within this request, the `fulfillment` object must explicitly specify the `sessionStatus` as "STOP" within the delivery attributes. This signal instructs the Provider to cease the energy flow immediately. Subsequently, the Provider (BPP) will transmit an `on_update` callback containing the finalized Charge Detail Record (CDR) reflecting the actual energy consumed up to the point of termination.
+During an active charging session, the user may elect to voluntarily terminate the service prior to the completion of the charge or the scheduled time. To facilitate this request, the application (BAP) triggers an `update` API call. Within this request, the `fulfillment` object must explicitly specify the `sessionStatus` as "STOP" within the delivery attributes. This signal instructs the Provider to cease the energy flow immediately. Subsequently, the Provider (BPP) will transmit two `on_update` callbacks: an immediate one containing the finalized Charge Detail Record (CDR) with `invoiceStatus: PENDING` (no invoice URL), and a deferred unsolicited push with `invoiceStatus: AVAILABLE` once the invoice document is ready (see §11.1.2.13 for the two-phase invoice flow).
 
 **12.3.1. action: update**
 * **Method:** POST
@@ -6263,7 +6319,9 @@ The user pre-authorized ₹143.95 but the charger stopped early — the vehicle'
 
 ##### 12.5.1.1. Step 1 — on_update (Charging Completed with Undercharge)
 
-The BPP sends this after the charging session completes with actual consumption lower than the pre-authorized estimate. The `orderValue` reflects the actual consumption amount (₹90.00), and a `DISCOUNT` component signals the refund adjustment.
+The BPP sends two `on_update` callbacks for the same `transaction_id`: an immediate one with `invoiceStatus: PENDING` (no URL), and a deferred unsolicited push with `invoiceStatus: AVAILABLE` (with URL).
+
+The immediate `orderValue` reflects the actual consumption amount (₹90.00), and a `DISCOUNT` component signals the refund adjustment.
 
 **Order Value Breakdown:**
 
@@ -6285,6 +6343,7 @@ The BPP sends this after the charging session completes with actual consumption 
 | `beckn:payment.beckn:amount.value` | `143.95` | Original pre-authorized payment (unchanged) |
 | `beckn:payment.beckn:paymentStatus` | `COMPLETED` | Payment was collected — refund hasn't happened yet |
 | `beckn:orderAttributes.totals.value` | `90.00` | Invoice matches actual order value |
+| `beckn:orderAttributes.invoiceStatus` | `PENDING` | Invoice document being generated (no URL yet) |
 | `sessionStatus` | `COMPLETED` | Charging session completed |
 
 > **Important:** The `DISCOUNT` component with value −53.95 is the signal to the BAP that a refund is due. The BAP SHOULD compare `beckn:payment.beckn:amount` (₹143.95 paid) against `beckn:orderValue.value` (₹90.00 actual) to determine the refund amount. The `description` field on the `DISCOUNT` component explicitly states the refund calculation.
@@ -6389,13 +6448,10 @@ The BPP sends this after the charging session completes with actual consumption 
         "@context": "https://raw.githubusercontent.com/bhim/ubc-tsd/main/beckn-schemas/UBCExtensions/v1/context.jsonld",
         "@type": "UBCInvoice",
         "invoiceId": "invoice-ev-charging-001",
+        "invoiceStatus": "PENDING",
         "totals": {
           "currency": "INR",
           "value": 90.0
-        },
-        "invoiceAttributes": {
-          "@type": "UBCInvoiceAttributes",
-          "invoiceUrl": "https://example-bpp.com/charging/session/order-ev-charging-001/fee"
         }
       },
       "beckn:payment": {
@@ -6422,6 +6478,17 @@ The BPP sends this after the charging session completes with actual consumption 
   "error": {}
 }
 ```
+</details>
+
+##### 12.5.1.1a. Step 1a — Deferred invoice-ready on_update (AVAILABLE)
+
+After the CPO generates the invoice document (1–8 minutes), the BPP sends an unsolicited `on_update` with `invoiceStatus: AVAILABLE` and the `invoiceUrl`.
+
+<details>
+<summary><a href="../Example-schemas/14_03_on_update/ev-charging-invoice-ready-on_update.json">Invoice-ready on_update (AVAILABLE) :rocket:</a></summary>
+
+> See the full invoice-ready payload in the [completed scenario §11.1.2.13 Step 2](#111213-async-action-on_update-stop-charging--two-phase-invoice). The payload structure is identical; only the `message_id` and `timestamp` differ.
+
 </details>
 
 ##### 12.5.1.2. Step 2 — on_status (Refund Confirmed by Payment Gateway)
@@ -6557,7 +6624,9 @@ This outstanding balance is then collected when the user initiates their next ch
 
 ##### 12.5.2.1. Step 1 — on_update (Charging Completed with Overcharge)
 
-The BPP sends this after the charging session completes with actual consumption higher than the pre-authorized estimate. The `orderValue` reflects the full actual consumption (₹287.90). The component breakdown separates the base estimated cost (`UNIT`) from the excess consumption (`FEE`).
+The BPP sends two `on_update` callbacks for the same `transaction_id`: an immediate one with `invoiceStatus: PENDING` (no URL), and a deferred unsolicited push with `invoiceStatus: AVAILABLE` (with URL).
+
+The immediate `orderValue` reflects the full actual consumption (₹287.90). The component breakdown separates the base estimated cost (`UNIT`) from the excess consumption (`FEE`).
 
 **Order Value Breakdown:**
 
@@ -6581,6 +6650,7 @@ The BPP sends this after the charging session completes with actual consumption 
 | `beckn:payment.beckn:amount.value` | `143.95` | Original pre-authorized payment (only this much was collected) |
 | `beckn:payment.beckn:paymentStatus` | `COMPLETED` | Original payment was collected successfully |
 | `beckn:orderAttributes.totals.value` | `287.90` | Invoice reflects full actual consumption |
+| `beckn:orderAttributes.invoiceStatus` | `PENDING` | Invoice document being generated (no URL yet) |
 | `sessionStatus` | `COMPLETED` | Charging session completed |
 
 > **Warning:** The missing payment amount of ₹143.95 represents money the BPP is owed but could not collect because it exceeds the pre-authorized payment. This amount is implicitly recorded against `user-123` on the BPP side and will surface in their next charging session's `on_select` quote.
@@ -6697,13 +6767,10 @@ The BPP sends this after the charging session completes with actual consumption 
         "@context": "https://raw.githubusercontent.com/bhim/ubc-tsd/main/beckn-schemas/UBCExtensions/v1/context.jsonld",
         "@type": "UBCInvoice",
         "invoiceId": "invoice-ev-charging-001",
+        "invoiceStatus": "PENDING",
         "totals": {
           "currency": "INR",
           "value": 287.90
-        },
-        "invoiceAttributes": {
-          "@type": "UBCInvoiceAttributes",
-          "invoiceUrl": "https://example-bpp.com/charging/session/order-ev-charging-001/fee"
         }
       },
       "beckn:payment": {
@@ -6730,6 +6797,17 @@ The BPP sends this after the charging session completes with actual consumption 
   "error": {}
 }
 ```
+</details>
+
+##### 12.5.2.1a. Step 1a — Deferred invoice-ready on_update (AVAILABLE)
+
+After the CPO generates the invoice document (1–8 minutes), the BPP sends an unsolicited `on_update` with `invoiceStatus: AVAILABLE` and the `invoiceUrl`.
+
+<details>
+<summary><a href="../Example-schemas/14_03_on_update/ev-charging-invoice-ready-on_update.json">Invoice-ready on_update (AVAILABLE) :rocket:</a></summary>
+
+> See the full invoice-ready payload in the [completed scenario §11.1.2.13 Step 2](#111213-async-action-on_update-stop-charging--two-phase-invoice). The payload structure is identical; only the `message_id` and `timestamp` differ.
+
 </details>
 
 ##### 12.5.2.2. Step 2 — on_select (Next Session with Outstanding Balance)

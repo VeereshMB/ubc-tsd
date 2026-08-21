@@ -104,22 +104,35 @@ components:
     ########################################################################
     UBCInvoice:
       type: object
-      required: ["invoiceId"]
+      required: ["invoiceId", "invoiceStatus"]
       additionalProperties: false
       x-jsonld:
         "@context": ./context.jsonld
         "@type": UBCInvoice
       description: >
         UBC Network-specific invoice object. Carried as the value of
-        beckn:orderAttributes on the Order when the network needs to
-        attach full invoice details (totals, invoice URL, etc.) alongside
-        the order.
+        beckn:orderAttributes on the Order. The invoice lifecycle uses
+        two on_update callbacks: the first (immediate) carries totals
+        with invoiceStatus PENDING and no invoiceUrl; the second
+        (unsolicited, deferred) carries invoiceStatus AVAILABLE with
+        the invoiceUrl once the CPO has generated the invoice document.
       properties:
         invoiceId:
           type: string
           description: Stable invoice identifier (system ID).
           example: "invoice-ev-charging-001"
           x-jsonld: { "@id": "schema:identifier" }
+        invoiceStatus:
+          type: string
+          description: >
+            Lifecycle status of the invoice. PENDING means the invoice
+            document is being generated (no URL available yet). AVAILABLE
+            means the invoice document is ready and invoiceUrl is provided.
+          enum:
+            - PENDING
+            - AVAILABLE
+          example: "PENDING"
+          x-jsonld: { "@id": "ubc:invoiceStatus" }
         totals:
           type: object
           description: Invoice total amount.
@@ -142,15 +155,15 @@ components:
     ########################################################################
     UBCInvoiceAttributes:
       type: object
-      required: ["invoiceUrl"]
       additionalProperties: false
       x-jsonld:
         "@context": ./context.jsonld
         "@type": UBCInvoiceAttributes
       description: >
         UBC Network-specific invoice attributes. Attached to
-        Invoice.invoiceAttributes to provide a link to the digital
-        invoice or charging session fee breakdown.
+        UBCInvoice.invoiceAttributes to provide a link to the digital
+        invoice or charging session fee breakdown. Only present when
+        invoiceStatus is AVAILABLE.
       properties:
         "@type":
           type: string

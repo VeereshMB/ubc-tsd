@@ -23,13 +23,10 @@
         "@context": "https://raw.githubusercontent.com/bhim/ubc-tsd/main/beckn-schemas/UBCExtensions/v1/context.jsonld",
         "@type": "UBCInvoice",
         "invoiceId": "invoice-ev-charging-001",
+        "invoiceStatus": "PENDING",
         "totals": {
           "currency": "INR",
           "value": 287.9
-        },
-        "invoiceAttributes": {
-          "@type": "UBCInvoiceAttributes",
-          "invoiceUrl": "https://example-bpp.com/charging/session/order-ev-charging-001/fee"
         }
       },
       "beckn:buyer": {

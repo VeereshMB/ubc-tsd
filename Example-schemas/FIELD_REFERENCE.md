@@ -262,10 +262,17 @@ Fields in `message.order.beckn:orderAttributes` for EV charging order specifics.
 | `beckn:orderAttributes.preferences.startTime` | Preferred Start | DateTime | ❌ | Preferred session start | `2026-01-04T08:00:00+05:30` |
 | `beckn:orderAttributes.preferences.endTime` | Preferred End | DateTime | ❌ | Preferred session end | `2026-01-04T10:00:00+05:30` |
 | `beckn:orderAttributes.buyerFinderFee` | Buyer Finder Fee | Object | ❌ | BAP commission | `{currency: "INR", value: 2.5}` |
+| `beckn:orderAttributes` | UBCInvoice | Object | ❌ | Invoice object (on_update callbacks) | `{@type: "UBCInvoice", invoiceId: "...", invoiceStatus: "PENDING"}` |
+| `beckn:orderAttributes.invoiceId` | Invoice ID | String | ✅ | Stable invoice identifier | `invoice-ev-charging-001` |
+| `beckn:orderAttributes.invoiceStatus` | Invoice Status | Enum | ✅ | Lifecycle status: PENDING, AVAILABLE | `PENDING` |
+| `beckn:orderAttributes.totals` | Totals | Object | ❌ | Invoice total amount | `{currency: "INR", value: 143.95}` |
+| `beckn:orderAttributes.invoiceAttributes` | Invoice Attributes | Object | ❌ | Present when invoiceStatus=AVAILABLE | `{@type: "UBCInvoiceAttributes", invoiceUrl: "..."}` |
+| `beckn:orderAttributes.invoiceAttributes.invoiceUrl` | Invoice URL | URI | ❌ | URL to digital invoice (only when AVAILABLE) | `https://example-bpp.com/invoice.pdf` |
 
 **Notes:**
 - `preferences` allows buyers to specify desired charging time windows
 - `buyerFinderFee` represents the commission charged by the BAP
+- `UBCInvoice` is used in on_update callbacks. The BPP sends two on_update per transaction: first with `invoiceStatus: PENDING` (no URL), then deferred with `invoiceStatus: AVAILABLE` (with URL)
 
 ---
 

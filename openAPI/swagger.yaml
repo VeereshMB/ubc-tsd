@@ -1406,7 +1406,11 @@ paths:
       tags:
         - Order
       summary: Callback for update
-      description: Returns update result.
+      description: |
+        Returns update result. For invoice flows, the BPP sends two on_update
+        callbacks per transaction_id: an immediate one with invoiceStatus=PENDING
+        (no URL), and a deferred unsolicited push with invoiceStatus=AVAILABLE
+        (with invoiceUrl). BAPs MUST accept multiple on_update per transaction_id.
       requestBody:
         required: true
         content:
