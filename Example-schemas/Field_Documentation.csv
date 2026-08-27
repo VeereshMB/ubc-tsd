@@ -248,4 +248,17 @@ beckn:orderAttributes.invoiceStatus,Invoice Status,Enum,Yes,"Lifecycle status: P
 beckn:orderAttributes.totals,Totals,Object,No,Invoice total amount,{currency: INR value: 143.95},"on_update",Invoice total
 beckn:orderAttributes.invoiceAttributes,Invoice Attributes,Object,No,Present when invoiceStatus=AVAILABLE,{@type: UBCInvoiceAttributes invoiceUrl: ...},"on_update",Only in AVAILABLE phase
 beckn:orderAttributes.invoiceAttributes.invoiceUrl,Invoice URL,URI,No,URL to digital invoice,https://example-bpp.com/invoice.pdf,"on_update",Only when AVAILABLE
+message.feedback,Feedback,Object,Yes,Support feedback object,{comments tags supportStatus},"support, on_support",Grievance tracking
+message.feedback.comments,Comments,String,No,Free-text grievance description,"Charging session stopped at 40% but billed full amount","support, on_support",User's issue description
+message.feedback.tags,Tags,Array[String],No,Categorization tags,"[charging-interrupted, billing-dispute]","support, on_support",Observability tags
+message.feedback.supportStatus,Support Status,Enum,Yes,"Lifecycle status: OPEN, ACKNOWLEDGED, IN_PROGRESS, RESOLVED, CLOSED, ESCALATED",OPEN,"support, on_support",Ticket status
+message.support,Support,Object,Yes,Support contact information,{name phone email},"support, on_support",BPP support details
+message.support.name,Name,String,No,Support contact name,BlueCharge Support Team,"support, on_support",Team name
+message.support.phone,Phone,String,No,Support phone number,18001080,"support, on_support",Contact number
+message.support.email,Email,String,No,Support email,support@example.com,"support, on_support",Contact email
+message.support.url,URL,String,No,Support ticket URL,https://support.example.com/ticket/123,"support, on_support",Ticket link
+message.support.hours,Hours,String,No,Support availability,Mon–Sun 24/7 IST,"support, on_support",Operating hours
+message.support.channels,Channels,Array[String],No,Available support channels,"[PHONE, EMAIL, WEB]","support, on_support",Contact methods
+message.refId,Reference ID,String,Yes,Reference to order or item,order-ev-charging-001,"support, on_support",Entity being reported
+message.refType,Reference Type,Enum,Yes,"Reference type: ORDER, ITEM",ORDER,"support, on_support",Type of entity
 

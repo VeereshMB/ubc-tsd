@@ -713,6 +713,43 @@ Fields for catalog publishing to discovery indexers.
 
 ---
 
+## Support Fields (Support / on_support)
+
+### SupportFeedback
+
+| Field Path | Display Name | Type | Required | Description | Example |
+|------------|--------------|------|----------|-------------|---------|
+| `message.feedback` | Feedback | Object | ✅ | Support feedback object | `{comments, tags, supportStatus}` |
+| `message.feedback.comments` | Comments | String | ❌ | Free-text grievance description | `Charging session stopped at 40% but billed full amount` |
+| `message.feedback.tags` | Tags | Array[String] | ❌ | Categorization tags for observability | `["charging-interrupted", "billing-dispute"]` |
+| `message.feedback.supportStatus` | Support Status | String | ✅ | Lifecycle status of support ticket | `OPEN`, `ACKNOWLEDGED`, `IN_PROGRESS`, `RESOLVED`, `CLOSED`, `ESCALATED` |
+
+### Support Contact Info
+
+| Field Path | Display Name | Type | Required | Description | Example |
+|------------|--------------|------|----------|-------------|---------|
+| `message.support` | Support | Object | ✅ | Support contact information | `{name, phone, email, ...}` |
+| `message.support.name` | Name | String | ❌ | Support contact name | `BlueCharge Support Team` |
+| `message.support.phone` | Phone | String | ❌ | Support phone number | `18001080` |
+| `message.support.email` | Email | String | ❌ | Support email | `support@example.com` |
+| `message.support.url` | URL | String | ❌ | Support ticket URL | `https://support.example.com/ticket/123` |
+| `message.support.hours` | Hours | String | ❌ | Support availability hours | `Mon–Sun 24/7 IST` |
+| `message.support.channels` | Channels | Array[String] | ❌ | Available support channels | `["PHONE", "EMAIL", "WEB"]` |
+
+**Support Status Values:**
+- `OPEN` - Initial state when support is raised
+- `ACKNOWLEDGED` - BPP has received the request
+- `IN_PROGRESS` - Ticket is being investigated
+- `RESOLVED` - Issue has been resolved
+- `CLOSED` - Ticket is closed
+- `ESCALATED` - Issue escalated outside network bounds
+
+**Reference Types (refType):**
+- `ORDER` - Order-level issues (billing, session problems)
+- `ITEM` - Connector/station-level issues (hardware, availability)
+
+---
+
 ## Additional Resources
 
 - [Beckn Protocol Specification](https://github.com/beckn/protocol-specifications)

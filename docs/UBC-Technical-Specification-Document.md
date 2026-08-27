@@ -19,8 +19,9 @@
 * [User Stories](#11-user-stories)
 * [Special Corner Cases](#12-special-corner-cases)
   * [Undercharge & Overcharge Settlement](#125-undercharge--overcharge-settlement-scenarios)
-* [Error Codes](#13-error-codes)
-* [Conclusion](#14-conclusion)
+* [Support Lifecycle](#13-support-lifecycle)
+* [Error Codes](#14-error-codes)
+* [Conclusion](#15-conclusion)
 
 ---
 
@@ -2645,6 +2646,8 @@ The PaymentSettlement schema extends the Payment object with an array of settlem
 > **Two-phase invoice flow:** Invoice generation takes some minutes per CPO. The BPP sends two `on_update` callbacks for the same `transaction_id`:
 > 1. **Immediate on_update (t=0):** Carries the finalized CDR + payment summary with `invoiceStatus: PENDING` and no `invoiceUrl`. The BAP can show the payment summary to the user immediately.
 > 2. **Deferred invoice-ready on_update :** An unsolicited push carrying `invoiceStatus: AVAILABLE` with the `invoiceUrl` pointing to the generated invoice document. The BAP updates the UI to show the invoice link.
+>
+> **Uniformity requirement:** Even if the invoice is immediately available from the BPP, the BPP MUST still send the PENDING payload first, followed by the AVAILABLE payload. This ensures uniform behavior across the network — BAPs can rely on receiving exactly two callbacks for every completed session, simplifying client-side state management and reducing edge cases.
 >
 > BAPs MUST accept multiple `on_update` callbacks per `transaction_id`, deduplicating by `message_id`. The BAP SHOULD NOT regress `invoiceStatus` from `AVAILABLE` back to `PENDING`.
 
@@ -6494,7 +6497,7 @@ The immediate `orderValue` reflects the actual consumption amount (₹90.00), an
 
 ##### 12.5.1.1a. Step 1a — Deferred invoice-ready on_update (AVAILABLE)
 
-After the CPO generates the invoice document (1–8 minutes), the BPP sends an unsolicited `on_update` with `invoiceStatus: AVAILABLE` and the `invoiceUrl`.
+After the CPO generates the invoice document, the BPP sends an unsolicited `on_update` with `invoiceStatus: AVAILABLE` and the `invoiceUrl`.
 
 <details>
 <summary><a href="../Example-schemas/14_03_on_update/ev-charging-invoice-ready-on_update.json">Invoice-ready on_update (AVAILABLE) :rocket:</a></summary>
@@ -7041,15 +7044,285 @@ All components use only the four valid beckn types. The `description` field diff
 
 > **Note:** The `on_status` is only sent when there is a status change to be communicated. Just as a BPP sends `on_status` when payment has been completed (where the BPP gets a confirmation from the PG on payment completion), in the refund case the `on_status` MUST be initiated once the PG confirms that the payment refund process has been initiated. The refund would be processed within 7 business days based on SLAs with the corresponding PG.
 
+## 13. Support Lifecycle
 
-## 13. Error Codes
+This section defines the support interaction flow between BAPs and BPPs for handling grievances, issues, and feedback related to charging sessions, orders, or items (connectors).
+
+### 13.1. Support Flow Overview
+
+The support interaction follows a request-response pattern with status updates:
+
+| Step | Actor | Action | API |
+| :--- | :--- | :--- | :--- |
+| 1 | BAP | Raises support request with grievance details | `support` |
+| 2 | BPP | Acknowledges receipt and provides initial response | `on_support` |
+| 3 | BPP | Sends status updates as issue progresses | `on_support` (multiple) |
+
+### 13.2. Support Request (BAP → BPP)
+
+**Method:** POST  
+**Action:** `support`
+
+The BAP sends a support request to the BPP when a user raises a grievance. The request includes:
+
+* **refId:** Reference to the entity being reported (order ID, item/connector ID, etc.)
+* **refType:** Type of reference — `ORDER` for order-related issues, `ITEM` for connector/station issues
+* **support:** Contact details of the user raising the support
+* **feedback:** Grievance details including:
+  * `comments`: Free-text description of the issue (MUST be specific to the context)
+  * `tags`: Categorization tags for observability and issue tracking
+  * `supportStatus`: Initial status — typically `OPEN`
+
+> **Important:** Support can be raised by the user at any point in the lifecycle. The `refId` and `refType` MUST accurately reference the relevant entity:
+> * Order-level issues (billing disputes, session problems) → `refType: ORDER`, `refId: <order_id>`
+> * Connector/station-level issues (hardware damage, availability) → `refType: ITEM`, `refId: <item_id>`
+
+<details>
+<summary><a href="../Example-schemas/17_support/ev-charging-support.json">Example: Order-level support :rocket:</a></summary>
+
+```json
+{
+  "context": {
+    "version": "2.0.0",
+    "action": "support",
+    "domain": "beckn.one:deg:ev-charging",
+    "bpp_id": "example-bpp.com",
+    "bpp_uri": "https://example-bpp.com/pilot/bap/energy/v2",
+    "transaction_id": "2b4d69aa-22e4-4c78-9f56-5a7b9e2b2002",
+    "message_id": "dee432d9-36c9-4146-ad21-2f5bcac9b6a9",
+    "timestamp": "2025-01-27T12:15:00Z",
+    "ttl": "PT30S",
+    "bap_id": "example-bap.com",
+    "bap_uri": "https://api.example-bap.com/pilot/bap/energy/v2"
+  },
+  "message": {
+    "refId": "order-ev-charging-001",
+    "refType": "ORDER",
+    "support": {
+      "@context": "https://raw.githubusercontent.com/beckn/protocol-specifications-v2/refs/heads/core-v2.0.0-rc/schema/core/v2/context.jsonld",
+      "@type": "beckn:SupportInfo",
+      "name": "Ravi Kumar",
+      "phone": "+91-9876543210",
+      "email": "ravi.kumar@example.com",
+      "hours": "Mon–Sun: 6:00 PM - 10:00 PM IST",
+      "channels": ["PHONE", "WHATSAPP"]
+    },
+    "feedback": {
+      "@context": "https://raw.githubusercontent.com/bhim/ubc-tsd/main/beckn-schemas/UBCExtensions/v1/context.jsonld",
+      "@type": "SupportFeedback",
+      "comments": "Charging session stopped unexpectedly at 40% battery but I was billed the full estimated amount. The charger displayed an error code E-204.",
+      "tags": ["charging-interrupted", "billing-dispute", "charger-malfunction"],
+      "supportStatus": "OPEN"
+    }
+  },
+  "error": {}
+}
+```
+</details>
+
+<details>
+<summary><a href="../Example-schemas/17_support/ev-charging-support-item.json">Example: Item/Connector-level support :rocket:</a></summary>
+
+```json
+{
+  "context": {
+    "version": "2.0.0",
+    "action": "support",
+    "domain": "beckn.one:deg:ev-charging",
+    "bpp_id": "example-bpp.com",
+    "bpp_uri": "https://example-bpp.com/pilot/bap/energy/v2",
+    "transaction_id": "2b4d69aa-22e4-4c78-9f56-5a7b9e2b2002",
+    "message_id": "11223344-5566-7788-99aa-bbccddeeff00",
+    "timestamp": "2025-01-27T11:00:00Z",
+    "ttl": "PT30S",
+    "bap_id": "example-bap.com",
+    "bap_uri": "https://api.example-bap.com/pilot/bap/energy/v2"
+  },
+  "message": {
+    "refId": "IND*ecopower-charging*cs-01*IN*ECO*BTM*01*CCS2*A*CCS2-A",
+    "refType": "ITEM",
+    "support": {
+      "@context": "https://raw.githubusercontent.com/beckn/protocol-specifications-v2/refs/heads/core-v2.0.0-rc/schema/core/v2/context.jsonld",
+      "@type": "beckn:SupportInfo",
+      "name": "Ravi Kumar",
+      "phone": "+91-9876543210",
+      "email": "ravi.kumar@example.com",
+      "hours": "Mon–Sun: 6:00 PM - 10:00 PM IST",
+      "channels": ["PHONE", "WHATSAPP"]
+    },
+    "feedback": {
+      "@context": "https://raw.githubusercontent.com/bhim/ubc-tsd/main/beckn-schemas/UBCExtensions/v1/context.jsonld",
+      "@type": "SupportFeedback",
+      "comments": "The CCS2 connector at this charging station is physically damaged. The latch mechanism is broken and the connector does not lock into the vehicle inlet properly.",
+      "tags": ["connector-damaged", "unable-to-charge", "hardware-issue"],
+      "supportStatus": "OPEN"
+    }
+  },
+  "error": {}
+}
+```
+</details>
+
+### 13.3. Support Acknowledgement and Status Updates (BPP → BAP)
+
+**Method:** POST  
+**Action:** `on_support`
+
+The BPP responds to support requests with acknowledgement and status updates. The BPP MAY send multiple `on_support` responses as the issue progresses through its lifecycle.
+
+#### Support Status Enum
+
+| Status | Description |
+| :--- | :--- |
+| `OPEN` | Initial state when support is raised by BAP |
+| `ACKNOWLEDGED` | BPP has received and acknowledged the support request |
+| `IN_PROGRESS` | Ticket is being actively investigated |
+| `RESOLVED` | Issue has been resolved |
+| `CLOSED` | Ticket is closed (may be closed by user or after resolution) |
+| `ESCALATED` | Issue cannot be resolved within network bounds and has been escalated to CPO or higher authority |
+
+#### Status Flow
+
+```
+OPEN → ACKNOWLEDGED → IN_PROGRESS → RESOLVED → CLOSED
+                     ↘ ESCALATED
+```
+
+<details>
+<summary><a href="../Example-schemas/18_on_support/ev-charging-on_support.json">Example: Initial acknowledgement :rocket:</a></summary>
+
+```json
+{
+  "context": {
+    "version": "2.0.0",
+    "action": "on_support",
+    "domain": "beckn.one:deg:ev-charging",
+    "bap_id": "example-bap.com",
+    "bap_uri": "https://example-bap.com/pilot/bap/energy/v2",
+    "transaction_id": "2b4d69aa-22e4-4c78-9f56-5a7b9e2b2002",
+    "message_id": "dee432d9-36c9-4146-ad21-2f5bcac9b6a9",
+    "timestamp": "2025-01-27T12:15:30Z",
+    "ttl": "PT30S",
+    "bpp_id": "example-bpp.com",
+    "bpp_uri": "https://example-bpp.com/pilot/bpp/energy/v2"
+  },
+  "message": {
+    "support": {
+      "@context": "https://raw.githubusercontent.com/beckn/protocol-specifications-v2/refs/heads/core-v2.0.0-rc/schema/core/v2/context.jsonld",
+      "@type": "beckn:SupportInfo",
+      "name": "BlueCharge Support Team",
+      "phone": "18001080",
+      "email": "support@bluechargenet-aggregator.io",
+      "url": "https://support.bluechargenet-aggregator.io/ticket/SUP-20250730-001",
+      "hours": "Mon–Sun 24/7 IST",
+      "channels": ["PHONE", "EMAIL", "WEB", "CHAT"]
+    },
+    "feedback": {
+      "@context": "https://raw.githubusercontent.com/bhim/ubc-tsd/main/beckn-schemas/UBCExtensions/v1/context.jsonld",
+      "@type": "SupportFeedback",
+      "supportStatus": "ACKNOWLEDGED"
+    }
+  },
+  "error": {}
+}
+```
+</details>
+
+<details>
+<summary><a href="../Example-schemas/18_on_support/ev-charging-on_support-in-progress.json">Example: In Progress :rocket:</a></summary>
+
+```json
+{
+  "context": {
+    "version": "2.0.0",
+    "action": "on_support",
+    "domain": "beckn.one:deg:ev-charging",
+    "bap_id": "example-bap.com",
+    "bap_uri": "https://example-bap.com/pilot/bap/energy/v2",
+    "transaction_id": "2b4d69aa-22e4-4c78-9f56-5a7b9e2b2002",
+    "message_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "timestamp": "2025-01-27T14:30:00Z",
+    "ttl": "PT30S",
+    "bpp_id": "example-bpp.com",
+    "bpp_uri": "https://example-bpp.com/pilot/bpp/energy/v2"
+  },
+  "message": {
+    "support": {
+      "@context": "https://raw.githubusercontent.com/beckn/protocol-specifications-v2/refs/heads/core-v2.0.0-rc/schema/core/v2/context.jsonld",
+      "@type": "beckn:SupportInfo"
+    },
+    "feedback": {
+      "@context": "https://raw.githubusercontent.com/bhim/ubc-tsd/main/beckn-schemas/UBCExtensions/v1/context.jsonld",
+      "@type": "SupportFeedback",
+      "supportStatus": "IN_PROGRESS"
+    }
+  },
+  "error": {}
+}
+```
+</details>
+
+<details>
+<summary><a href="../Example-schemas/18_on_support/ev-charging-on_support-resolved.json">Example: Resolved :rocket:</a></summary>
+
+```json
+{
+  "context": {
+    "version": "2.0.0",
+    "action": "on_support",
+    "domain": "beckn.one:deg:ev-charging",
+    "bap_id": "example-bap.com",
+    "bap_uri": "https://example-bap.com/pilot/bap/energy/v2",
+    "transaction_id": "2b4d69aa-22e4-4c78-9f56-5a7b9e2b2002",
+    "message_id": "f9e8d7c6-b5a4-3210-fedc-ba9876543210",
+    "timestamp": "2025-01-28T10:00:00Z",
+    "ttl": "PT30S",
+    "bpp_id": "example-bpp.com",
+    "bpp_uri": "https://example-bpp.com/pilot/bpp/energy/v2"
+  },
+  "message": {
+    "support": {
+      "@context": "https://raw.githubusercontent.com/beckn/protocol-specifications-v2/refs/heads/core-v2.0.0-rc/schema/core/v2/context.jsonld",
+      "@type": "beckn:SupportInfo"
+    },
+    "feedback": {
+      "@context": "https://raw.githubusercontent.com/bhim/ubc-tsd/main/beckn-schemas/UBCExtensions/v1/context.jsonld",
+      "@type": "SupportFeedback",
+      "comments": "Billing discrepancy confirmed. A refund of INR 68.95 has been initiated to your UPI ID. Please allow 2-3 business days for the refund to reflect.",
+      "supportStatus": "RESOLVED"
+    }
+  },
+  "error": {}
+}
+```
+</details>
+
+### 13.4. Key Implementation Notes
+
+1. **Support at Any Lifecycle Point:** Users can raise support at any point — during discovery, active charging, post-session, or even after invoice generation. The `refId` and `refType` MUST accurately reference the relevant entity.
+
+2. **Multiple Status Updates:** The BPP MAY send multiple `on_support` callbacks with different statuses as the issue progresses. BAPs MUST be prepared to handle out-of-order or multiple status updates for the same transaction.
+
+3. **Feedback Tags:** Tags are used for issue categorization and help in observability. Common tags include:
+   * `charging-interrupted` — Session stopped unexpectedly
+   * `billing-dispute` — Disagreement about charges
+   * `charger-malfunction` — Hardware/connector issues
+   * `connector-damaged` — Physical damage to connector
+   * `unable-to-charge` — Unable to initiate or complete charging
+   * `software-issue` — App or firmware related problems
+
+4. **Escalation Path:** When an issue cannot be resolved within the network bounds (e.g., requires CPO-level hardware inspection, regulatory intervention), the BPP MUST set `supportStatus: ESCALATED` and provide escalation details in the `comments` field.
+
+5. **Idempotency:** Support requests and responses MUST be idempotent. BAPs should deduplicate based on `message_id`.
+
+## 14. Error Codes
 The error codes for the core specification can be found [here](https://github.com/beckn/protocol-specifications/blob/master/docs/BECKN-005-Error-Codes-Draft-01.md).
 
 Error codes are communicated as follows:
 * **Schema Level Errors:** If the error is due to a schema validation failure, the error code is returned within the `NACK` acknowledgement.
 * **Value/Logic Errors:** If the error is related to invalid values within the payload or specific business logic, the error code is returned within the corresponding callback API.
 
-## 14. Conclusion
+## 15. Conclusion
 
 This Technical Specification Document serves as the foundational blueprint for a unified, interoperable electric vehicle charging ecosystem. By leveraging the decentralized nature of the Beckn Protocol, we are moving beyond fragmented, siloed networks toward a user-centric model where discovery, booking, and payment are seamless across all service providers.
 
