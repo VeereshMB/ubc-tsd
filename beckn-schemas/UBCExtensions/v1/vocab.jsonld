@@ -24,13 +24,13 @@
             "@id": "ubc:UBCInvoice",
             "@type": "rdfs:Class",
             "rdfs:label": "UBC Invoice",
-            "rdfs:comment": "UBC Network-specific invoice object carrying invoice identifier, totals, and invoice attributes."
+            "rdfs:comment": "UBC Network-specific invoice object carrying invoice identifier, invoice status, totals, and invoice attributes."
         },
         {
             "@id": "ubc:UBCInvoiceAttributes",
             "@type": "rdfs:Class",
             "rdfs:label": "UBC Invoice Attributes",
-            "rdfs:comment": "UBC Network-specific invoice attributes including a link to the session fee or digital invoice."
+            "rdfs:comment": "UBC Network-specific invoice attributes including a link to the session fee or digital invoice. Only present when invoiceStatus is AVAILABLE."
         },
         {
             "@id": "ubc:SettlementAccount",
@@ -47,10 +47,49 @@
             "schema:rangeIncludes": "ubc:UBCInvoiceAttributes"
         },
         {
+            "@id": "ubc:invoiceStatus",
+            "@type": "rdf:Property",
+            "rdfs:label": "Invoice status",
+            "rdfs:comment": "Lifecycle status of the invoice. PENDING means the invoice document is being generated. AVAILABLE means the invoice document is ready and invoiceUrl is provided.",
+            "rdfs:domain": "ubc:UBCInvoice",
+            "schema:rangeIncludes": "ubc:InvoiceStatus"
+        },
+        {
+            "@id": "ubc:InvoiceStatus",
+            "@type": "schema:Enumeration",
+            "schema:name": "Invoice Status",
+            "rdfs:comment": "Enumeration of invoice lifecycle statuses.",
+            "rdfs:seeAlso": "https://schema.org/ActionStatusType",
+            "schema:hasEnumerationMember": [
+                {
+                    "@id": "ubc:InvoiceStatusPending"
+                },
+                {
+                    "@id": "ubc:InvoiceStatusAvailable"
+                }
+            ]
+        },
+        {
+            "@id": "ubc:InvoiceStatusPending",
+            "@type": "ubc:InvoiceStatus",
+            "schema:name": "PENDING",
+            "schema:identifier": "PENDING",
+            "rdfs:comment": "Invoice document is being generated. No URL available yet.",
+            "rdfs:seeAlso": "https://schema.org/PotentialActionStatus"
+        },
+        {
+            "@id": "ubc:InvoiceStatusAvailable",
+            "@type": "ubc:InvoiceStatus",
+            "schema:name": "AVAILABLE",
+            "schema:identifier": "AVAILABLE",
+            "rdfs:comment": "Invoice document is ready and can be accessed via invoiceUrl.",
+            "rdfs:seeAlso": "https://schema.org/CompletedActionStatus"
+        },
+        {
             "@id": "ubc:invoiceUrl",
             "@type": "rdf:Property",
             "rdfs:label": "Invoice URL",
-            "rdfs:comment": "URL to the digital invoice or charging session fee breakdown for the completed order.",
+            "rdfs:comment": "URL to the digital invoice or charging session fee breakdown for the completed order. Only present when invoiceStatus is AVAILABLE.",
             "rdfs:domain": "ubc:UBCInvoiceAttributes",
             "schema:rangeIncludes": "schema:URL"
         },

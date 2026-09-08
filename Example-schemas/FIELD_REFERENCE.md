@@ -262,10 +262,17 @@ Fields in `message.order.beckn:orderAttributes` for EV charging order specifics.
 | `beckn:orderAttributes.preferences.startTime` | Preferred Start | DateTime | ❌ | Preferred session start | `2026-01-04T08:00:00+05:30` |
 | `beckn:orderAttributes.preferences.endTime` | Preferred End | DateTime | ❌ | Preferred session end | `2026-01-04T10:00:00+05:30` |
 | `beckn:orderAttributes.buyerFinderFee` | Buyer Finder Fee | Object | ❌ | BAP commission | `{currency: "INR", value: 2.5}` |
+| `beckn:orderAttributes` | UBCInvoice | Object | ❌ | Invoice object (on_update callbacks) | `{@type: "UBCInvoice", invoiceId: "...", invoiceStatus: "PENDING"}` |
+| `beckn:orderAttributes.invoiceId` | Invoice ID | String | ✅ | Stable invoice identifier | `invoice-ev-charging-001` |
+| `beckn:orderAttributes.invoiceStatus` | Invoice Status | Enum | ✅ | Lifecycle status: PENDING, AVAILABLE | `PENDING` |
+| `beckn:orderAttributes.totals` | Totals | Object | ❌ | Invoice total amount | `{currency: "INR", value: 143.95}` |
+| `beckn:orderAttributes.invoiceAttributes` | Invoice Attributes | Object | ❌ | Present when invoiceStatus=AVAILABLE | `{@type: "UBCInvoiceAttributes", invoiceUrl: "..."}` |
+| `beckn:orderAttributes.invoiceAttributes.invoiceUrl` | Invoice URL | URI | ❌ | URL to digital invoice (only when AVAILABLE) | `https://example-bpp.com/invoice.pdf` |
 
 **Notes:**
 - `preferences` allows buyers to specify desired charging time windows
 - `buyerFinderFee` represents the commission charged by the BAP
+- `UBCInvoice` is used in on_update callbacks. The BPP sends two on_update per transaction: first with `invoiceStatus: PENDING` (no URL), then deferred with `invoiceStatus: AVAILABLE` (with URL)
 
 ---
 
@@ -703,6 +710,43 @@ Fields for catalog publishing to discovery indexers.
 **Status Values:**
 - `ACCEPTED` - Catalog successfully indexed
 - `REJECTED` - Catalog rejected due to validation errors
+
+---
+
+## Support Fields (Support / on_support)
+
+### SupportFeedback
+
+| Field Path | Display Name | Type | Required | Description | Example |
+|------------|--------------|------|----------|-------------|---------|
+| `message.feedback` | Feedback | Object | ✅ | Support feedback object | `{comments, tags, supportStatus}` |
+| `message.feedback.comments` | Comments | String | ❌ | Free-text grievance description | `Charging session stopped at 40% but billed full amount` |
+| `message.feedback.tags` | Tags | Array[String] | ❌ | Categorization tags for observability | `["charging-interrupted", "billing-dispute"]` |
+| `message.feedback.supportStatus` | Support Status | String | ✅ | Lifecycle status of support ticket | `OPEN`, `ACKNOWLEDGED`, `IN_PROGRESS`, `RESOLVED`, `CLOSED`, `ESCALATED` |
+
+### Support Contact Info
+
+| Field Path | Display Name | Type | Required | Description | Example |
+|------------|--------------|------|----------|-------------|---------|
+| `message.support` | Support | Object | ✅ | Support contact information | `{name, phone, email, ...}` |
+| `message.support.name` | Name | String | ❌ | Support contact name | `BlueCharge Support Team` |
+| `message.support.phone` | Phone | String | ❌ | Support phone number | `18001080` |
+| `message.support.email` | Email | String | ❌ | Support email | `support@example.com` |
+| `message.support.url` | URL | String | ❌ | Support ticket URL | `https://support.example.com/ticket/123` |
+| `message.support.hours` | Hours | String | ❌ | Support availability hours | `Mon–Sun 24/7 IST` |
+| `message.support.channels` | Channels | Array[String] | ❌ | Available support channels | `["PHONE", "EMAIL", "WEB"]` |
+
+**Support Status Values:**
+- `OPEN` - Initial state when support is raised
+- `ACKNOWLEDGED` - BPP has received the request
+- `IN_PROGRESS` - Ticket is being investigated
+- `RESOLVED` - Issue has been resolved
+- `CLOSED` - Ticket is closed
+- `ESCALATED` - Issue escalated outside network bounds
+
+**Reference Types (refType):**
+- `ORDER` - Order-level issues (billing, session problems)
+- `ITEM` - Connector/station-level issues (hardware, availability)
 
 ---
 

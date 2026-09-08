@@ -1,0 +1,44 @@
+{
+  "context": {
+    "version": "2.0.0",
+    "action": "on_update",
+    "domain": "beckn.one:deg:ev-charging",
+    "timestamp": "2024-01-15T10:30:05Z",
+    "message_id": "bb9f86db-9a3d-4e9c-8c11-81c8f1a7b901",
+    "transaction_id": "2b4d69aa-22e4-4c78-9f56-5a7b9e2b2002",
+    "bpp_id": "ev-charging.sandbox2.com",
+    "bpp_uri": "http://onix-bpp-plugin:8002/bpp/receiver",
+    "ttl": "PT30S",
+    "bap_id": "ev-charging.sandbox1.com",
+    "bap_uri": "http://onix-bap-plugin:8001/bap/receiver"
+  },
+  "message": {
+    "order": {
+      "@context": "https://raw.githubusercontent.com/beckn/protocol-specifications-v2/refs/heads/core-v2.0.0-rc/schema/core/v2/context.jsonld",
+      "@type": "beckn:Order",
+      "beckn:id": "order-ev-charging-001",
+      "beckn:orderStatus": "COMPLETED",
+      "beckn:seller": "cpo1.com",
+      "beckn:orderAttributes": {
+        "@context": "https://raw.githubusercontent.com/bhim/ubc-tsd/main/beckn-schemas/UBCExtensions/v1/context.jsonld",
+        "@type": "UBCInvoice",
+        "invoiceId": "invoice-ev-charging-001",
+        "invoiceStatus": "AVAILABLE",
+        "invoiceAttributes": {
+          "@type": "UBCInvoiceAttributes",
+          "invoiceUrl": "https://example-bpp.com/charging/session/order-ev-charging-001/fee"
+        }
+      },
+      "beckn:buyer": {
+        "@context": "https://raw.githubusercontent.com/beckn/protocol-specifications-v2/refs/heads/core-v2.0.0-rc/schema/core/v2/context.jsonld",
+        "@type": "beckn:Buyer",
+        "beckn:id": "user-123"
+      },
+      "beckn:orderItems": [
+        {
+          "beckn:orderedItem": "IND*ecopower-charging*cs-01*IN*ECO*BTM*01*CCS2*A*CCS2-A"
+        }
+      ]
+    }
+  }
+}

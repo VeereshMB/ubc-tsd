@@ -11,6 +11,14 @@
         "UBCInvoiceAttributes": "ubc:UBCInvoiceAttributes",
         "UBCInvoice": "ubc:UBCInvoice",
         "invoiceId": "schema:identifier",
+        "invoiceStatus": {
+            "@id": "ubc:invoiceStatus",
+            "@type": "@id",
+            "@context": {
+                "PENDING": "ubc:InvoiceStatusPending",
+                "AVAILABLE": "ubc:InvoiceStatusAvailable"
+            }
+        },
         "totals": "schema:totalPrice",
         "currency": "schema:priceCurrency",
         "value": "schema:price",
