@@ -611,6 +611,90 @@ The Catalog Discovery Service (CDS) provides a centralized mechanism for Buyer P
 * **Recommendation:**
 To maintain the operational integrity and synchronization of the network, it is strongly recommended that the `availabilityWindow` of an item cached within the Catalog Discovery Service (CDS) be updated during the `init` stage. At this juncture, as the provider designates the specific item (connector) as 'reserved' or 'in-use' within their internal inventory management systems, a corresponding update must be executed within the CDS. This ensures that the availability status of the connector is accurately reflected across the network, thereby mitigating the risk of double-booking and ensuring catalog currency.
 
+### 8.6. Catalog Publish
+
+This section documents how chargers are published to the Catalog Discovery Service (CDS), how the CDS stores and updates the published data, and how charger availability is managed after publication. The request and response payload structures for `catalog_publish` and `on_catalog_publish` are defined in section 8.5.2 above.
+
+#### 8.6.1. How to publish chargers to CDS
+
+Chargers should be published using the Publish action defined in the example schemas (see [Example json :rocket:](../Example-schemas/21_publish/ev-charging-catalog-publish.json)). To minimize failures during bulk updates, publishing should be performed in batches, either station-wise or charger-wise.
+
+It is recommended to use a simple catalog structure with a clear hierarchy, such as **Catalog → Charger → Connector**, where a single catalog is dedicated to a specific charger and its connectors are represented as items (as defined in the example schemas). This approach improves the reliability and efficiency of the publication process.
+
+#### 8.6.2. How data is saved and updated in CDS DB
+
+The CDS uses upsert logic and uses the following fields as a composite unique key:
+
+* **Catalog ID**
+* **Item ID**
+* **BPP ID**
+
+A unique constraint/index exists on `UNIQUE (catalog_id, item_id, bpp_id)`. Based on the combination of these three fields, the database determines whether to insert a new record or update an existing one.
+
+**Scenario 1: Record does not exist**
+
+Incoming data:
+
+```json
+{
+  "catalogId": "CAT001",
+  "itemId": "ITEM100",
+  "bppId": "BPP01",
+  "price": 500
+}
+```
+
+No row exists with `(CAT001, ITEM100, BPP01)`.
+
+**Result: INSERT** — a new row is created.
+
+**Scenario 2: Record already exists**
+
+Existing row:
+
+| catalog_id | item_id | bpp_id |
+| :--- | :--- | :--- |
+| CAT001 | ITEM100 | BPP01 |
+
+Incoming data:
+
+```json
+{
+  "catalogId": "CAT001",
+  "itemId": "ITEM100",
+  "bppId": "BPP01",
+  "price": 600
+}
+```
+
+Since the combination `(CAT001, ITEM100, BPP01)` already exists, the database performs an **UPDATE**.
+
+Result:
+
+| catalog_id | item_id | bpp_id | price |
+| :--- | :--- | :--- | :--- |
+| CAT001 | ITEM100 | BPP01 | 600 |
+
+**Key Point:** The system treats `catalog_id + item_id + bpp_id` as the business key. Only when all three values match an existing record will an update occur. If any one of them changes, it is considered a new record and an insert is performed.
+
+| Catalog ID | Item ID | BPP ID | Action |
+| :--- | :--- | :--- | :--- |
+| CAT001 | ITEM100 | BPP01 | Update existing |
+| CAT001 | ITEM100 | BPP02 | Insert new |
+| CAT001 | ITEM101 | BPP01 | Insert new |
+| CAT002 | ITEM100 | BPP01 | Insert new |
+
+#### 8.6.3. Charger availability management
+
+Two fields control discoverability of a charger in the CDS:
+
+| Field | What it controls | When to change it |
+| :--- | :--- | :--- |
+| `beckn:availabilityWindow` | When the charger is bookable (time slots) | Bookings, cancellations, daily schedule reset |
+| `beckn:isActive` | Whether the charger works at all (on/off) | Hardware fault, maintenance |
+
+For a more detailed explanation refer: https://gist.github.com/anandakshay23-work/adb679b0fbc658ed522e7ad1e09265f7
+
 ## 9. Creating an Open Network for EV Charging
 The open network for EV charging requires all the EV charging BAPs, BPPs, to be able to discover each other and become part of a common network. This network is manifested in the form of a Distributed Registry maintained by NBSL (the Network Operator).
 
